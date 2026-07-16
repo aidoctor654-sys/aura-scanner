@@ -54,9 +54,15 @@ jobs:
   upload-play:
     name: Upload to Google Play (internal)
     needs: build-aab
-    if: ${{ secrets.SERVICE_ACCOUNT_JSON }}
     runs-on: ubuntu-latest
+    if: always()
     steps:
+      - name: Check secret
+        run: |
+          if [ -z "${{ secrets.SERVICE_ACCOUNT_JSON }}" ]; then
+            echo "SERVICE_ACCOUNT_JSON not set, skipping"
+            exit 0
+          fi
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
