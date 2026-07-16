@@ -1,17 +1,9 @@
 name: Build Android App Bundle
 
 # Builds AAB from hosted PWA via PWABuilder Cloud API.
-# No JDK required on your machine — bubblewrap runs in PWABuilder's cloud.
-# Requires:
-#   - Aura Scanner hosted publicly on HTTPS (GitHub Pages / Cloudflare Pages / Netlify)
-#   - PWA_HOST secret set in repo Settings → Secrets → Actions
-#
-# How to use:
-#   1. Host ~/aura-scanner/ on GitHub Pages (Settings → Pages → main branch, root)
-#   2. Set PWA_HOST secret = https://YOUR-USER.github.io/aura-scanner
-#   3. Push to main → workflow runs, AAB is uploaded as artifact
-#   4. Download aura-scanner-aab artifact → upload to Play Console manually
-#   5. (Optional) add SERVICE_ACCOUNT_JSON secret for auto-upload to Play Store
+# No JDK required — bubblewrap runs in PWABuilder's cloud.
+# Default: uses GitHub Pages URL (https://<owner>.github.io/<repo>/)
+# Override: set PWA_HOST secret for custom domain.
 
 on:
   push:
@@ -23,7 +15,36 @@ jobs:
     name: Build AAB via PWABuilder Cloud API
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve PWA URL
+        id: url
+        run: |
+          if [ -n "${{ secrets.PWA_HOST }}" ]; then
+            URL="${{ secrets.PWA_HOST }}"
+          else
+            URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          fi
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "✓ Using PWA host: $URL"
+
+      - name: Wait for Pages build (first run)
+        if: github.event_name == 'push' && github.event.before == '0000000000000000000000000000000000000000'
+        run: sleep 30
+
+      - name: Verify PWA reachable
+        run: |
+          URL="${{ steps.url.outputs.url }}"
+          HTTP=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "$URL/" || echo "000")
+          if [ "$HTTP" != "200" ]; then
+            echo "⚠ PWA at $URL returned HTTP $HTTP (still building?). Waiting 60s..."
+            sleep 60
+            HTTP=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "$URL/" || echo "000")
+            echo "After wait: HTTP $HTTP"
+          fi
+          echo "PWA reachable: HTTP $HTTP"
+
       - name: Build AAB
+        env:
+          PWA_URL: ${{ steps.url.outputs.url }}
         run: |
           cat > /tmp/payload.json <<EOF
           {
@@ -32,11 +53,11 @@ jobs:
             "packageId": "com.aura.scanner",
             "appVersion": "1.0.0.0",
             "appVersionCode": 1,
-            "host": "${{ secrets.PWA_HOST }}",
-            "iconUrl": "${{ secrets.PWA_HOST }}/icons/icon-512.png",
-            "maskableIconUrl": "${{ secrets.PWA_HOST }}/icons/icon-maskable-512.png",
+            "host": "${PWA_URL}",
+            "iconUrl": "${PWA_URL}/icons/icon-512.png",
+            "maskableIconUrl": "${PWA_URL}/icons/icon-maskable-512.png",
             "monochromeIconUrl": null,
-            "splashScreenImage": "${{ secrets.PWA_HOST }}/icons/icon-512.png",
+            "splashScreenImage": "${PWA_URL}/icons/icon-512.png",
             "startUrl": "/",
             "display": "standalone",
             "orientation": "portrait",
@@ -52,7 +73,7 @@ jobs:
             "fallbackType": "customtabs",
             "launcherName": "Aura",
             "splashScreenFadeOutDuration": 300,
-            "webManifestUrl": "${{ secrets.PWA_HOST }}/manifest.webmanifest",
+            "webManifestUrl": "${PWA_URL}/manifest.webmanifest",
             "additionalTrustedOrigins": [],
             "includeSourceCode": false,
             "isChromeOSOnly": false,
@@ -76,6 +97,7 @@ jobs:
             }]
           }
           EOF
+          echo "=== payload size: $(wc -c < /tmp/payload.json) bytes ==="
           curl -X POST https://pwabuilder-cloudapk.azurewebsites.net/generateAppPackage \
             -H "Content-Type: application/json" \
             -o app-package.zip \
