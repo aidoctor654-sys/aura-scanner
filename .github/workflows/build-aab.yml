@@ -1,9 +1,8 @@
 name: Build Android App Bundle
 
 # Builds AAB from hosted PWA via PWABuilder Cloud API.
-# No JDK required on your machine - bubblewrap runs in PWABuilder's cloud.
-# Uses GitHub Pages URL by default: https://<owner>.github.io/<repo>/
-# Override: set PWA_HOST secret for custom domain.
+# No JDK required on your machine; bubblewrap runs in PWABuilder cloud.
+# Default: GitHub Pages URL. Override with PWA_HOST secret for custom domain.
 
 on:
   push:
