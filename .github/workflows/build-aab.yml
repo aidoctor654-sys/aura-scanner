@@ -27,7 +27,7 @@ jobs:
           echo "✓ Using PWA host: $URL"
 
       - name: Wait for Pages build (first run)
-        if: github.event_name == 'push' && github.event.before == '0000000000000000000000000000000000000000'
+        if: ${{ github.event_name == 'push' && github.event.before == '0000000000000000000000000000000000000000' }}
         run: sleep 30
 
       - name: Verify PWA reachable
