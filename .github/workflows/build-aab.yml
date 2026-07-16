@@ -1,0 +1,117 @@
+name: Build Android App Bundle
+
+# Builds AAB from hosted PWA via PWABuilder Cloud API.
+# No JDK required on your machine — bubblewrap runs in PWABuilder's cloud.
+# Requires:
+#   - Aura Scanner hosted publicly on HTTPS (GitHub Pages / Cloudflare Pages / Netlify)
+#   - PWA_HOST secret set in repo Settings → Secrets → Actions
+#
+# How to use:
+#   1. Host ~/aura-scanner/ on GitHub Pages (Settings → Pages → main branch, root)
+#   2. Set PWA_HOST secret = https://YOUR-USER.github.io/aura-scanner
+#   3. Push to main → workflow runs, AAB is uploaded as artifact
+#   4. Download aura-scanner-aab artifact → upload to Play Console manually
+#   5. (Optional) add SERVICE_ACCOUNT_JSON secret for auto-upload to Play Store
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-aab:
+    name: Build AAB via PWABuilder Cloud API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build AAB
+        run: |
+          cat > /tmp/payload.json <<EOF
+          {
+            "name": "Aura Scanner",
+            "shortName": "Aura",
+            "packageId": "com.aura.scanner",
+            "appVersion": "1.0.0.0",
+            "appVersionCode": 1,
+            "host": "${{ secrets.PWA_HOST }}",
+            "iconUrl": "${{ secrets.PWA_HOST }}/icons/icon-512.png",
+            "maskableIconUrl": "${{ secrets.PWA_HOST }}/icons/icon-maskable-512.png",
+            "monochromeIconUrl": null,
+            "splashScreenImage": "${{ secrets.PWA_HOST }}/icons/icon-512.png",
+            "startUrl": "/",
+            "display": "standalone",
+            "orientation": "portrait",
+            "themeColor": "#0a0612",
+            "backgroundColor": "#0a0612",
+            "navigationColor": "#0a0612",
+            "navigationColorDark": "#0a0612",
+            "navigationDividerColor": "#0a0612",
+            "navigationDividerColorDark": "#0a0612",
+            "themeColorDark": "#0a0612",
+            "enableNotifications": false,
+            "enableSiteSettingsShortcut": true,
+            "fallbackType": "customtabs",
+            "launcherName": "Aura",
+            "splashScreenFadeOutDuration": 300,
+            "webManifestUrl": "${{ secrets.PWA_HOST }}/manifest.webmanifest",
+            "additionalTrustedOrigins": [],
+            "includeSourceCode": false,
+            "isChromeOSOnly": false,
+            "signingMode": "none",
+            "signing": null,
+            "serviceAccountJsonFile": null,
+            "features": {
+              "locationDelegation": { "enabled": true },
+              "playBilling": { "enabled": false }
+            },
+            "shareTarget": {
+              "action": "/share-target/",
+              "method": "GET",
+              "params": { "title": "title", "text": "text", "url": "url" }
+            },
+            "shortcuts": [{
+              "name": "New Reading",
+              "short_name": "Scan",
+              "url": "/?demo=intro",
+              "icons": [{ "sizes": "192x192", "src": "/icons/icon-192.png" }]
+            }]
+          }
+          EOF
+          curl -X POST https://pwabuilder-cloudapk.azurewebsites.net/generateAppPackage \
+            -H "Content-Type: application/json" \
+            -o app-package.zip \
+            -d @/tmp/payload.json \
+            -w "HTTP %{http_code} | size=%{size_download} | time=%{time_total}s\n"
+          ls -la app-package.zip
+          unzip -l app-package.zip | head -20
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aura-scanner-aab
+          path: app-package.zip
+          retention-days: 30
+
+  # Optional: auto-upload to Play Store internal track
+  upload-play:
+    name: Upload to Google Play (internal)
+    needs: build-aab
+    if: env.SERVICE_ACCOUNT_JSON != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aura-scanner-aab
+          path: .
+
+      - name: Extract AAB
+        run: unzip -o app-package.zip && ls -la *.aab *.apk 2>/dev/null
+
+      - name: Upload to Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: com.aura.scanner
+          releaseFiles: app-release-bundle.aab
+          track: internal
+          status: draft

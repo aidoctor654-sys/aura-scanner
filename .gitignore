@@ -1,0 +1,51 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnp.*
+
+# Build artifacts
+dist/
+build/
+*.apk
+*.aab
+*.keystore
+*.jks
+*.log
+
+# Hermes / secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+*.env
+tokens/
+gh-token
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# OS temp
+*.tmp
+*.bak
+*.orig
+
+# Tooling
+.grzybnia/
+*.pid
+
+# Local QA output (not source)
+previews/

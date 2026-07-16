@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Share preview</title>
+<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:90vw;max-height:90vh}</style>
+</head><body>
+<img id="i" />
+<script>
+const auras = {
+  gold:    {color:'#ffc857', glow:'rgba(255, 200, 87, 0.6)', name:'GOLD'},
+  violet:  {color:'#a97cff', glow:'rgba(169, 124, 255, 0.6)', name:'VIOLET'},
+  blue:    {color:'#5fb4ff', glow:'rgba(95, 180, 255, 0.6)', name:'BLUE'},
+  green:   {color:'#5fd49a', glow:'rgba(95, 212, 154, 0.6)', name:'GREEN'},
+  red:     {color:'#ff5e6c', glow:'rgba(255, 94, 108, 0.6)', name:'RED'},
+  white:   {color:'#f5f0ff', glow:'rgba(245, 240, 255, 0.7)', name:'WHITE'},
+  orange:  {color:'#ff9a52', glow:'rgba(255, 154, 82, 0.6)', name:'ORANGE'},
+};
+const which = new URLSearchParams(location.search).get('aura') || 'violet';
+const a = auras[which];
+const c = document.createElement('canvas');
+c.width = 1080; c.height = 1080;
+const ctx = c.getContext('2d');
+const W = c.width, H = c.height;
+// bg
+const bg = ctx.createRadialGradient(W/2, H*0.4, 50, W/2, H/2, W*0.7);
+bg.addColorStop(0, '#1a0d2e'); bg.addColorStop(1, '#0a0612');
+ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+// stars
+ctx.fillStyle = '#fff';
+for (let i=0;i<80;i++){const x=Math.random()*W,y=Math.random()*H,r=Math.random()*1.5;ctx.globalAlpha=0.3+Math.random()*0.5;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+ctx.globalAlpha = 1;
+// orb
+const cx = W/2, cy = H*0.42, r = 140;
+const glow = ctx.createRadialGradient(cx,cy,10,cx,cy,r*2.2);
+glow.addColorStop(0, a.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
+ctx.fillStyle = glow; ctx.fillRect(0,0,W,H);
+const core = ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,5, cx,cy, r);
+core.addColorStop(0,'rgba(255,255,255,0.95)');
+core.addColorStop(0.3,a.color);
+core.addColorStop(0.7, '#000000');
+core.addColorStop(1,'#0a0612');
+ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+ctx.textAlign='center'; ctx.textBaseline='middle';
+ctx.fillStyle='#f3eaff'; ctx.font='500 28px serif';
+ctx.fillText('YOUR AURA REVEALS', W/2, H*0.72);
+ctx.fillStyle=a.color; ctx.font='600 64px serif';
+ctx.fillText(a.name, W/2, H*0.78);
+ctx.fillStyle='#6c5f8a'; ctx.font='italic 18px serif';
+ctx.fillText('For entertainment purposes only', W/2, H*0.92);
+ctx.fillStyle='#b4a4d4'; ctx.font='500 16px serif';
+ctx.fillText('AURA SCANNER', W/2, H*0.96);
+document.getElementById('i').src = c.toDataURL('image/png');
+document.title = 'share-' + which;
+</script>
+</body></html>
