@@ -38,8 +38,19 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
+      - name: Configure Bubblewrap (no prompts)
+        run: |
+          mkdir -p $HOME/.bubblewrap
+          cat > $HOME/.bubblewrap/config.json <<EOF
+          {
+            "jdkPath": "$JAVA_HOME",
+            "androidSdkPath": "$ANDROID_HOME"
+          }
+          EOF
+          cat $HOME/.bubblewrap/config.json
+
       - name: Generate TWA project
-        run: bubblewrap init --manifest="${{ steps.url.outputs.url }}/manifest.webmanifest" --skip-jdk-install
+        run: bubblewrap init --manifest="${{ steps.url.outputs.url }}/manifest.webmanifest"
 
       - name: Build AAB
         run: bubblewrap build
