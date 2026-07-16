@@ -39,7 +39,7 @@ jobs:
         run: npm install -g @bubblewrap/cli
 
       - name: Generate TWA project
-        run: bubblewrap init --manifest="${{ steps.url.outputs.url }}/manifest.webmanifest"
+        run: bubblewrap init --manifest="${{ steps.url.outputs.url }}/manifest.webmanifest" --skip-jdk-install
 
       - name: Build AAB
         run: bubblewrap build
