@@ -1,8 +1,4 @@
-name: Build Android App Bundle
-
-# Builds AAB from hosted PWA via PWABuilder Cloud API.
-# No JDK required on your machine; bubblewrap runs in PWABuilder cloud.
-# Default: GitHub Pages URL. Override with PWA_HOST secret for custom domain.
+name: Build AAB
 
 on:
   push:
@@ -28,110 +24,25 @@ jobs:
       - name: Verify PWA reachable
         run: |
           URL="${{ steps.url.outputs.url }}"
-          HTTP=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "$URL/" || echo "000")
+          HTTP=$(curl -sS -m 30 -o /dev/null -w '%{http_code}' "$URL/" || echo 000)
           echo "PWA reachable: HTTP $HTTP"
-          if [ "$HTTP" != "200" ]; then
-            echo "::warning::PWA returned HTTP $HTTP - workflow may still succeed if Pages is still building"
-          fi
 
       - name: Build AAB
         env:
           PWA_URL: ${{ steps.url.outputs.url }}
         run: |
-          cat > /tmp/payload.json <<EOF
-          {
-            "name": "Aura Scanner",
-            "shortName": "Aura",
-            "packageId": "com.aura.scanner",
-            "appVersion": "1.0.0.0",
-            "appVersionCode": 1,
-            "host": "${PWA_URL}",
-            "iconUrl": "${PWA_URL}/icons/icon-512.png",
-            "maskableIconUrl": "${PWA_URL}/icons/icon-maskable-512.png",
-            "monochromeIconUrl": null,
-            "splashScreenImage": "${PWA_URL}/icons/icon-512.png",
-            "startUrl": "/",
-            "display": "standalone",
-            "orientation": "portrait",
-            "themeColor": "#0a0612",
-            "backgroundColor": "#0a0612",
-            "navigationColor": "#0a0612",
-            "navigationColorDark": "#0a0612",
-            "navigationDividerColor": "#0a0612",
-            "navigationDividerColorDark": "#0a0612",
-            "themeColorDark": "#0a0612",
-            "enableNotifications": false,
-            "enableSiteSettingsShortcut": true,
-            "fallbackType": "customtabs",
-            "launcherName": "Aura",
-            "splashScreenFadeOutDuration": 300,
-            "webManifestUrl": "${PWA_URL}/manifest.webmanifest",
-            "additionalTrustedOrigins": [],
-            "includeSourceCode": false,
-            "isChromeOSOnly": false,
-            "signingMode": "none",
-            "signing": null,
-            "serviceAccountJsonFile": null,
-            "features": {
-              "locationDelegation": { "enabled": true },
-              "playBilling": { "enabled": false }
-            },
-            "shareTarget": {
-              "action": "/share-target/",
-              "method": "GET",
-              "params": { "title": "title", "text": "text", "url": "url" }
-            },
-            "shortcuts": [{
-              "name": "New Reading",
-              "short_name": "Scan",
-              "url": "/?demo=intro",
-              "icons": [{ "sizes": "192x192", "src": "/icons/icon-192.png" }]
-            }]
-          }
-          EOF
-          echo "Payload size: $(wc -c < /tmp/payload.json) bytes"
-          HTTP=$(curl -sS -X POST https://pwabuilder-cloudapk.azurewebsites.net/generateAppPackage \
+          echo "PWA_URL=$PWA_URL"
+          curl -X POST https://pwabuilder-cloudapk.azurewebsites.net/generateAppPackage \
             -H "Content-Type: application/json" \
-            -o app-package.zip \
-            -w "%{http_code}" \
-            -d @/tmp/payload.json)
-          echo "PWABuilder response: HTTP $HTTP"
-          echo "File size: $(wc -c < app-package.zip) bytes"
-          echo "File type: $(file app-package.zip)"
-          if ! file app-package.zip | grep -q "Zip archive"; then
-            echo "::error::Response was not a ZIP archive"
-            cat app-package.zip | head -c 500
-            exit 1
-          fi
-          unzip -l app-package.zip
+            -o /tmp/resp.zip \
+            -w "HTTP %{http_code}\n" \
+            -d '{"name":"Aura Scanner","packageId":"com.aura.scanner","appVersion":"1.0.0.0","appVersionCode":1,"host":"'"$PWA_URL"'","iconUrl":"'"$PWA_URL"'/icons/icon-512.png","webManifestUrl":"'"$PWA_URL"'/manifest.webmanifest","startUrl":"/","display":"standalone","themeColor":"#0a0612","backgroundColor":"#0a0612","navigationColor":"#0a0612","launcherName":"Aura","fallbackType":"customtabs","signingMode":"none","signing":null}'
+          file /tmp/resp.zip
+          ls -la /tmp/resp.zip
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: aura-scanner-aab
-          path: app-package.zip
+          path: /tmp/resp.zip
           retention-days: 30
-
-  upload-play:
-    name: Upload to Google Play (internal)
-    needs: build-aab
-    if: ${{ secrets.SERVICE_ACCOUNT_JSON != '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: aura-scanner-aab
-          path: .
-
-      - name: Extract AAB
-        run: unzip -o app-package.zip && ls -la *.aab *.apk 2>/dev/null
-
-      - name: Upload to Play Store
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
-          packageName: com.aura.scanner
-          releaseFiles: app-release-bundle.aab
-          track: internal
-          status: draft
