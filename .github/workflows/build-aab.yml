@@ -1,4 +1,9 @@
-name: Build AAB
+name: Build Android App Bundle
+
+# Builds AAB using Bubblewrap CLI on GitHub Actions runner.
+# JDK 17 is set up automatically; bubblewrap + Android SDK are installed.
+# Input: PWA hosted publicly on HTTPS (defaults to GitHub Pages URL).
+# Output: aura-scanner-aab artifact + (optional) upload to Play Store internal.
 
 on:
   push:
@@ -7,7 +12,7 @@ on:
 
 jobs:
   build-aab:
-    name: Build AAB via PWABuilder Cloud API
+    name: Build AAB with Bubblewrap
     runs-on: ubuntu-latest
     steps:
       - name: Resolve PWA URL
@@ -21,28 +26,48 @@ jobs:
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Using PWA host: $URL"
 
-      - name: Verify PWA reachable
-        run: |
-          URL="${{ steps.url.outputs.url }}"
-          HTTP=$(curl -sS -m 30 -o /dev/null -w '%{http_code}' "$URL/" || echo 000)
-          echo "PWA reachable: HTTP $HTTP"
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Generate TWA project
+        run: bubblewrap init --manifest="${{ steps.url.outputs.url }}/manifest.webmanifest"
 
       - name: Build AAB
-        env:
-          PWA_URL: ${{ steps.url.outputs.url }}
-        run: |
-          echo "PWA_URL=$PWA_URL"
-          curl -X POST https://pwabuilder-cloudapk.azurewebsites.net/generateAppPackage \
-            -H "Content-Type: application/json" \
-            -o /tmp/resp.zip \
-            -w "HTTP %{http_code}\n" \
-            -d '{"name":"Aura Scanner","packageId":"com.aura.scanner","appVersion":"1.0.0.0","appVersionCode":1,"host":"'"$PWA_URL"'","iconUrl":"'"$PWA_URL"'/icons/icon-512.png","webManifestUrl":"'"$PWA_URL"'/manifest.webmanifest","startUrl":"/","display":"standalone","themeColor":"#0a0612","backgroundColor":"#0a0612","navigationColor":"#0a0612","launcherName":"Aura","fallbackType":"customtabs","signingMode":"none","signing":null}'
-          file /tmp/resp.zip
-          ls -la /tmp/resp.zip
+        run: bubblewrap build
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: aura-scanner-aab
-          path: /tmp/resp.zip
+          path: app-release-bundle.aab
           retention-days: 30
+
+  upload-play:
+    name: Upload to Google Play (internal)
+    needs: build-aab
+    if: ${{ secrets.SERVICE_ACCOUNT_JSON != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aura-scanner-aab
+          path: .
+
+      - name: Upload to Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: com.aura.scanner
+          releaseFiles: app-release-bundle.aab
+          track: internal
+          status: draft
