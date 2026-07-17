@@ -414,6 +414,7 @@
 // TRANSLATIONS
 // ═══════════════════════════════════════════
 let currentLang = 'en';
+let lastAuraKey = null;
 
 const UI_TEXT = {
   en: {
@@ -682,6 +683,7 @@ function showResult() {
   stopCamera(); // Release camera after scan complete
 
   const key = AURA_KEYS[Math.floor(Math.random() * AURA_KEYS.length)];
+  lastAuraKey = key;
   const aura = AURAS[key];
   const tr = AURA_TR[currentLang][key];
 
@@ -761,13 +763,15 @@ async function generateAndShare() {
   const ctx = canvas.getContext('2d');
   const title = document.getElementById('auraTitle').textContent;
   const color = getComputedStyle(document.documentElement).getPropertyValue('--orb-color').trim();
-  const auraKey = title.replace('You have a ','').replace(' Aura','');
+
+  // Use stored aura key instead of parsing translated title
+  const auraKey = lastAuraKey || 'White';
   const aura = AURAS[auraKey];
   if (!aura) {
-    log('ERROR: auraKey="' + auraKey + '" not found in AURAS', 'err');
+    log('ERROR: lastAuraKey=' + auraKey + ' not found', 'err');
     return;
   }
-  log('auraKey=' + auraKey + ' found', 'info');
+  log('Using auraKey=' + auraKey, 'info');
 
   const w = canvas.width, h = canvas.height;
 
