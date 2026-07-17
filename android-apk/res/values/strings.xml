@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Aura Scanner</string>
+    <string name="scan_btn">Scan My Aura</string>
+    <string name="share_btn">Share My Aura</string>
+</resources>
