@@ -305,6 +305,7 @@
     display:flex; justify-content:space-between; align-items:center;
     margin-bottom:12px; padding-bottom:8px;
     border-bottom:1px solid rgba(0,255,100,0.2);
+    flex-direction: row-reverse;  /* Close on LEFT, title on RIGHT */
   }
   #debugPanel .debug-title { color:#0f0; font-size:14px; font-weight:700; }
   #debugPanel .debug-close {
@@ -762,6 +763,11 @@ async function generateAndShare() {
   const color = getComputedStyle(document.documentElement).getPropertyValue('--orb-color').trim();
   const auraKey = title.replace('You have a ','').replace(' Aura','');
   const aura = AURAS[auraKey];
+  if (!aura) {
+    log('ERROR: auraKey="' + auraKey + '" not found in AURAS', 'err');
+    return;
+  }
+  log('auraKey=' + auraKey + ' found', 'info');
 
   const w = canvas.width, h = canvas.height;
 

@@ -172,7 +172,7 @@ public boolean shouldOverrideUrlLoading(WebView view, String url) {
 | v5 | Naprawione | Share nie działa |
 | v6-v7 | Share JS Bridge | Share nie działa (kamera ciągle aktywna) |
 | v8 | Kamera zatrzymywana | Share nadal nie działa |
-| v9 | Debug panel + logi | ...do zbadania... |
+| v10 | Debug panel + logi | ...do zbadania... |
 
 ## Filozofia
 
@@ -184,3 +184,4 @@ Każda wersja to krok. Każdy błąd to dane.
 
 *Built on Samsung Galaxy A52 (Termux) + tested on Samsung S21 5G*
 *Hermes A52 × Hellios, 2026*
+v10: fix debug Close button + error logging for share
